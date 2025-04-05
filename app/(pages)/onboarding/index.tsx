@@ -10,7 +10,9 @@ import {
   SafeAreaView,
   StatusBar,
 } from "react-native";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../../../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -50,8 +52,10 @@ const onboardingData: OnboardingItem[] = [
 ];
 
 export default function OnboardingScreen() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+    const router = useRouter();
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const flatListRef = useRef<FlatList>(null);
+    const { setHasSeenOnboarding } = useAuth();
 
   const renderItem = ({ item }: { item: OnboardingItem }) => {
     return (
@@ -75,15 +79,16 @@ export default function OnboardingScreen() {
         animated: true,
       });
     } else {
-      // Navigate to main app
-      router.replace("/");
+      // Use context to update state
+      setHasSeenOnboarding(true);
+      router.replace("/(auth)/register");
     }
   };
 
-  const handleLearnMore = () => {
-    // Handle learn more action
-    // For now, just navigate to home
-    router.replace("/");
+  const handleSkip = () => {
+    // Use context to update state
+    setHasSeenOnboarding(true);
+    router.replace("/(auth)/register");
   };
 
   const updateCurrentSlideIndex = (e: any) => {
@@ -109,14 +114,15 @@ export default function OnboardingScreen() {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.primaryButton} onPress={handleNext}>
-            <Text style={styles.primaryButtonText}>Get Started</Text>
+            <Text style={styles.primaryButtonText}>
+              {currentIndex === onboardingData.length - 1
+                ? "Get Started"
+                : "Next"}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleLearnMore}
-          >
-            <Text style={styles.secondaryButtonText}>Learn More</Text>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleSkip}>
+            <Text style={styles.secondaryButtonText}>Skip</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -147,7 +153,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#E8DECF",
   },
   slide: {
     width,
@@ -182,10 +188,10 @@ const styles = StyleSheet.create({
     left: 10,
     textShadowColor: "#000",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 10,
+    textShadowRadius: 5,
   },
   subtitle: {
-    fontFamily: "PlusJakartaSans_Regular",
+    fontFamily: "PlusJakartaSans_Bold",
     fontSize: 24,
     fontWeight: "600",
     color: "#333",

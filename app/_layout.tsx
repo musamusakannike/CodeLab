@@ -1,17 +1,20 @@
+// _layout.tsx
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_700Bold,
 } from "@expo-google-fonts/plus-jakarta-sans";
-import { ActivityIndicator, View } from "react-native";
-import { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ActivityIndicator, View, Text, StatusBar } from "react-native";
+import { useEffect } from "react";
 import "../global.css";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { AuthProvider, useAuth } from "../context/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function RootLayout() {
-  const [isReady, setIsReady] = useState(false);
-  const [initialRoute, setInitialRoute] = useState<string | null>(null);
+// Create a separate component for the navigation logic
+function NavigationContent() {
+  const { hasSeenOnboarding, authToken, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -20,51 +23,56 @@ export default function RootLayout() {
     PlusJakartaSans_Bold: PlusJakartaSans_700Bold,
   });
 
-  useEffect(() => {
-    const prepare = async () => {
-      try {
-        // Remove this line in production - it's only for testing
-        // await AsyncStorage.removeItem("hasSeenOnboarding");
-        
-        const hasSeenOnboarding = await AsyncStorage.getItem("hasSeenOnboarding");
-        console.log("Onboarding status:", hasSeenOnboarding);
-
-        if (hasSeenOnboarding === null) {
-          setInitialRoute("onboarding");
-        } else {
-          setInitialRoute("(tabs)"); // or whatever your main app route is
-        }
-      } catch (error) {
-        console.error("Error checking onboarding status:", error);
-        setInitialRoute("(tabs)"); // Fallback to main app
-      } finally {
-        setIsReady(true);
-      }
-    };
-
-    prepare();
-  }, []);
+  // const simulateMemoryClear = async () => {
+  //   await AsyncStorage.clear();
+  // };
+  // simulateMemoryClear();
 
   useEffect(() => {
-    if (!isReady || !fontsLoaded || !initialRoute) return;
+    if (isLoading || !fontsLoaded) return;
 
-    // Check if we need to redirect
-    const inAuthGroup = segments[0] === "onboarding";
+    const inAuthGroup = segments[0] === "(auth)";
+    const inOnboardingGroup = segments[0] === "onboarding";
+    const inTabsGroup = segments[0] === "(tabs)";
 
-    if (initialRoute === "onboarding" && !inAuthGroup) {
-      router.replace("/onboarding");
-    } else if (initialRoute !== "onboarding" && inAuthGroup) {
-      router.replace("/");
+    if (!hasSeenOnboarding && !inOnboardingGroup) {
+      router.replace("/(pages)/onboarding");
+      return;
     }
-  }, [isReady, fontsLoaded, initialRoute, segments]);
 
-  if (!fontsLoaded || !isReady) {
+    if (authToken) {
+      if (inAuthGroup || inOnboardingGroup) {
+        router.replace("/(tabs)");
+      }
+    } else {
+      if (!inAuthGroup) {
+        router.replace("/(auth)/login");
+      }
+    }
+  }, [hasSeenOnboarding, authToken, isLoading, fontsLoaded, segments]);
+
+  if (!fontsLoaded || isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" />
+      <View className="flex-1 items-center justify-center bg-[#F5F0E5]">
+        <ActivityIndicator size="large" color="#00A86B" />
+        <Text className="text-2xl font-bold text-[#040404]">Loading...</Text>
       </View>
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <SafeAreaView className="flex-1 bg-[#F5F0E5]">
+      <StatusBar animated backgroundColor="#F5F0E5" barStyle="dark-content" />
+      <Stack screenOptions={{ headerShown: false }} />
+    </SafeAreaView>
+  );
+}
+
+// Main layout component
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <NavigationContent />
+    </AuthProvider>
+  );
 }
