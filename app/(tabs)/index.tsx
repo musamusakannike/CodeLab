@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { 
   StyleSheet, 
   Text, 
@@ -8,11 +8,149 @@ import {
   ScrollView, 
   TextInput,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  Alert
 } from "react-native";
-import { Feather, AntDesign } from '@expo/vector-icons';
+import { Feather, AntDesign, Ionicons } from '@expo/vector-icons';
+import { useCourses } from "../../context/CourseContext";
+import { useRouter } from "expo-router";
 
 const HomeScreen = () => {
+  const { 
+    trendingCourses,
+    enrolledCourses,
+    unenrolledCourses,
+    setCurrentCourse,
+    claimDailyReward,
+    hasClaimedDailyReward,
+    streakDays,
+    totalGems
+  } = useCourses();
+  
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check for daily streak reward on component mount
+    if (!hasClaimedDailyReward) {
+      setTimeout(() => {
+        showStreakReward();
+      }, 1000);
+    }
+  }, []);
+
+  const showStreakReward = () => {
+    const reward = claimDailyReward();
+    if (reward > 0) {
+      Alert.alert(
+        "Daily Streak Reward!",
+        `Day ${streakDays}: You earned ${reward} gems for your streak! 🎉`,
+        [{ text: "Claim", style: "default" }]
+      );
+    }
+  };
+
+  const handleCoursePress = (course: any) => {
+    setCurrentCourse(course);
+    router.push("/(pages)/course-details");
+  };
+
+  const renderTrendingCourses = () => {
+    return (
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={styles.horizontalScroll}
+      >
+        {trendingCourses.map((course) => (
+          <TouchableOpacity 
+            key={course.id} 
+            style={styles.courseCard}
+            onPress={() => handleCoursePress(course)}
+          >
+            <Image 
+              source={{ uri: course.thumbnailUrl }} 
+              style={styles.courseImage}
+            />
+            <View style={styles.courseInfo}>
+              <Text style={styles.courseTitle}>{course.title}</Text>
+              <Text style={styles.courseCount}>{course.lessons.length} Lessons</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderEnrolledCourses = () => {
+    if (enrolledCourses.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>You haven't enrolled in any courses yet</Text>
+          <TouchableOpacity style={styles.emptyStateButton}>
+            <Text style={styles.emptyStateButtonText}>Browse Courses</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.myCoursesList}>
+        {enrolledCourses.map((course) => (
+          <TouchableOpacity 
+            key={course.id} 
+            style={styles.myCourseCard}
+            onPress={() => handleCoursePress(course)}
+          >
+            <Image 
+              source={{ uri: course.thumbnailUrl }} 
+              style={styles.myCourseImage}
+            />
+            <View style={styles.myCourseInfo}>
+              <Text style={styles.myCourseTitle}>{course.title}</Text>
+              <View style={styles.progressBarContainer}>
+                <View style={[styles.progressBar, { width: `${course.progress}%` }]} />
+              </View>
+              <View style={styles.progressDetails}>
+                <Text style={styles.progressText}>{course.progress}% completed</Text>
+                <TouchableOpacity>
+                  <Text style={styles.viewProgressText}>View Progress</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
+  const renderFeaturedCourse = () => {
+    // Get the first unenrolled course for the featured section
+    const featuredCourse = unenrolledCourses[0];
+    if (!featuredCourse) return null;
+
+    return (
+      <View style={styles.featuredContainer}>
+        <View style={styles.featuredContent}>
+          <View style={styles.featuredTextContainer}>
+            <Text style={styles.featuredTitle}>{featuredCourse.title}</Text>
+            <Text style={styles.featuredAuthor}>By {featuredCourse.instructor.name}</Text>
+            <TouchableOpacity 
+              style={styles.enrollButton}
+              onPress={() => handleCoursePress(featuredCourse)}
+            >
+              <Text style={styles.enrollButtonText}>Enroll Now</Text>
+              <AntDesign name="arrowright" size={16} color="#1C170D" />
+            </TouchableOpacity>
+          </View>
+          <Image 
+            source={{ uri: featuredCourse.thumbnailUrl }} 
+            style={styles.featuredImage}
+          />
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#E8DECF" />
@@ -26,9 +164,15 @@ const HomeScreen = () => {
           />
         </TouchableOpacity>
         <Text style={styles.welcomeText}>Welcome!!</Text>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Feather name="bell" size={24} color="#1C170D" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <View style={styles.gemsContainer}>
+            <Ionicons name="diamond" size={18} color="#FFD700" />
+            <Text style={styles.gemsText}>{totalGems}</Text>
+          </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Feather name="bell" size={24} color="#1C170D" />
+          </TouchableOpacity>
+        </View>
       </View>
       
       {/* Search Bar */}
@@ -45,120 +189,43 @@ const HomeScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Streak Banner */}
+        <TouchableOpacity style={styles.streakBanner} onPress={showStreakReward}>
+          <View style={styles.streakIconContainer}>
+            <Ionicons name="flame" size={24} color="#FF6B6B" />
+          </View>
+          <View style={styles.streakInfo}>
+            <Text style={styles.streakTitle}>Daily Streak: {streakDays} days</Text>
+            <Text style={styles.streakSubtitle}>
+              {hasClaimedDailyReward 
+                ? "You've claimed today's reward!" 
+                : "Tap to claim your daily reward!"}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={20} color="#8A7D65" />
+        </TouchableOpacity>
+
         {/* Trending Courses */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Trending Courses</Text>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-            <TouchableOpacity style={styles.courseCard}>
-              <Image 
-                source={require("../../assets/images/course-image.png")} 
-                style={styles.courseImage}
-              />
-              <View style={styles.courseInfo}>
-                <Text style={styles.courseTitle}>Career Development</Text>
-                <Text style={styles.courseCount}>12 Courses</Text>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.courseCard}>
-              <Image 
-                source={{ uri: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/fb579c8b-0720-48bf-83af-5342aa2ace6b-iFL42Qbr3ZyfGuZDYS6b8NAjvu0Dds.webp" }} 
-                style={styles.courseImage}
-              />
-              <View style={styles.courseInfo}>
-                <Text style={styles.courseTitle}>Basic Dev's</Text>
-                <Text style={styles.courseCount}>20 Courses</Text>
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
+          {renderTrendingCourses()}
         </View>
         
         {/* My Courses */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>My Courses</Text>
-          
-          <View style={styles.myCoursesList}>
-            <TouchableOpacity style={styles.myCourseCard}>
-              <Image 
-                source={{ uri: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/fb579c8b-0720-48bf-83af-5342aa2ace6b-iFL42Qbr3ZyfGuZDYS6b8NAjvu0Dds.webp" }} 
-                style={styles.myCourseImage}
-              />
-              <View style={styles.myCourseInfo}>
-                <Text style={styles.myCourseTitle}>Art & Design Courses</Text>
-                <View style={styles.progressBarContainer}>
-                  <View style={[styles.progressBar, { width: '65%' }]} />
-                </View>
-                <View style={styles.progressDetails}>
-                  <Text style={styles.progressText}>65% completed</Text>
-                  <TouchableOpacity>
-                    <Text style={styles.viewProgressText}>View Progress</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.myCourseCard}>
-              <Image 
-                source={{ uri: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/fb579c8b-0720-48bf-83af-5342aa2ace6b-iFL42Qbr3ZyfGuZDYS6b8NAjvu0Dds.webp" }} 
-                style={styles.myCourseImage}
-              />
-              <View style={styles.myCourseInfo}>
-                <Text style={styles.myCourseTitle}>3D Art & Design</Text>
-                <View style={styles.progressBarContainer}>
-                  <View style={[styles.progressBar, { width: '75%' }]} />
-                </View>
-                <View style={styles.progressDetails}>
-                  <Text style={styles.progressText}>75% completed</Text>
-                  <TouchableOpacity>
-                    <Text style={styles.viewProgressText}>View Progress</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.myCourseCard}>
-              <Image 
-                source={{ uri: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/fb579c8b-0720-48bf-83af-5342aa2ace6b-iFL42Qbr3ZyfGuZDYS6b8NAjvu0Dds.webp" }} 
-                style={styles.myCourseImage}
-              />
-              <View style={styles.myCourseInfo}>
-                <Text style={styles.myCourseTitle}>Basic Coding</Text>
-                <View style={styles.progressBarContainer}>
-                  <View style={[styles.progressBar, { width: '45%' }]} />
-                </View>
-                <View style={styles.progressDetails}>
-                  <Text style={styles.progressText}>45% completed</Text>
-                  <TouchableOpacity>
-                    <Text style={styles.viewProgressText}>View Progress</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
+          {renderEnrolledCourses()}
         </View>
         
         {/* Featured Course */}
-        <View style={styles.featuredContainer}>
-          <View style={styles.featuredContent}>
-            <View style={styles.featuredTextContainer}>
-              <Text style={styles.featuredTitle}>How to Make 3D or 4D Design</Text>
-              <Text style={styles.featuredAuthor}>By Miss Lillian Spiro</Text>
-              <TouchableOpacity style={styles.enrollButton}>
-                <Text style={styles.enrollButtonText}>Enroll Now</Text>
-                <AntDesign name="arrowright" size={16} color="#1C170D" />
-              </TouchableOpacity>
-            </View>
-            <Image 
-              source={{ uri: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/fb579c8b-0720-48bf-83af-5342aa2ace6b-iFL42Qbr3ZyfGuZDYS6b8NAjvu0Dds.webp" }} 
-              style={styles.featuredImage}
-            />
-          </View>
-        </View>
+        {renderFeaturedCourse()}
       </ScrollView>
       
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.floatingButton}>
+      <TouchableOpacity 
+        style={styles.floatingButton}
+        onPress={() => router.push("/all-courses")}
+      >
         <Feather name="plus" size={24} color="#FFFFFF" />
         <Text style={styles.floatingButtonText}>Add Course</Text>
       </TouchableOpacity>
@@ -179,6 +246,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  gemsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F0E5",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  gemsText: {
+    fontFamily: "PlusJakartaSans_Bold",
+    fontSize: 14,
+    color: "#1C170D",
+    marginLeft: 4,
   },
   avatarContainer: {
     width: 40,
@@ -226,6 +312,40 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
+  streakBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F0E5",
+    marginHorizontal: 20,
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF6B6B",
+  },
+  streakIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFEEEE",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  streakInfo: {
+    flex: 1,
+  },
+  streakTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1C170D",
+    fontFamily: "PlusJakartaSans_Bold",
+  },
+  streakSubtitle: {
+    fontSize: 14,
+    color: "#8A7D65",
+    fontFamily: "PlusJakartaSans_Regular",
+  },
   sectionContainer: {
     marginBottom: 24,
     paddingHorizontal: 20,
@@ -237,12 +357,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: "PlusJakartaSans_Bold",
   },
-  courseGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  horizontalScroll: {
+    gap: 16,
+    paddingRight: 20,
   },
   courseCard: {
-    width: "75%",
+    width: 250,
     borderRadius: 16,
     overflow: "hidden",
     backgroundColor: "#FFFFFF",
@@ -327,13 +447,14 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 14,
-    fontFamily: "PlusJakartaSans_Regular",
     color: "#8A7D65",
+    fontFamily: "PlusJakartaSans_Regular",
   },
   viewProgressText: {
     fontSize: 14,
-    fontFamily: "PlusJakartaSans_Regular",
     color: "#8A7D65",
+    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_Bold",
   },
   featuredContainer: {
     marginHorizontal: 20,
@@ -414,8 +535,29 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_Bold",
     marginLeft: 8,
   },
-  horizontalScroll: {
-    gap: 16,
-    paddingRight: 250,
+  emptyState: {
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#F5F0E5",
+    borderRadius: 16,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: "#8A7D65",
+    marginBottom: 16,
+    textAlign: "center",
+    fontFamily: "PlusJakartaSans_Regular",
+  },
+  emptyStateButton: {
+    backgroundColor: "#8A7D65",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  emptyStateButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_Bold",
   },
 });

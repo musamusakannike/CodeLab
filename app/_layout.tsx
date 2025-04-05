@@ -11,6 +11,7 @@ import "../global.css";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CourseProvider } from "../context/CourseContext";
 
 // Create a separate component for the navigation logic
 function NavigationContent() {
@@ -72,7 +73,9 @@ function NavigationContent() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <NavigationContent />
+      <CourseProvider>
+        <NavigationContent />
+      </CourseProvider>
     </AuthProvider>
   );
 }
